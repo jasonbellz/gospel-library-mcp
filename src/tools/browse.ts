@@ -21,6 +21,8 @@ export interface CategoryPage {
   title: string;
   url: string;
   articles: ArticleLink[];
+  notFound?: boolean;   // true when the path returned HTTP 404
+  suggestion?: string;  // guidance shown to Copilot when notFound
 }
 
 /**
@@ -41,6 +43,23 @@ export async function browseCategory(category: string): Promise<CategoryPage> {
   });
 
   if (!response.ok) {
+    if (response.status === 404) {
+      return {
+        title: "Category Not Found",
+        url,
+        articles: [],
+        notFound: true,
+        suggestion:
+          `The category path "${category}" was not found (HTTP 404).\n\n` +
+          `IMPORTANT: Category paths are exact and often year-specific. Common mistakes:\n` +
+          `  ❌ manual/come-follow-me\n` +
+          `  ✅ manual/come-follow-me-for-individuals-and-families-new-testament-2023\n` +
+          `  ✅ manual/come-follow-me-for-individuals-and-families-old-testament-2022\n` +
+          `  ✅ manual/come-follow-me-for-sunday-school-new-testament-2023\n\n` +
+          `Use search_gospel_library with a descriptive query to discover the correct path first.\n` +
+          `Example: search_gospel_library(query="come follow me 2023 new testament")`,
+      };
+    }
     throw new Error(`Failed to fetch category ${category}: HTTP ${response.status}`);
   }
 

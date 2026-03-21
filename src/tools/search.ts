@@ -150,6 +150,13 @@ const CATEGORY_ALIASES: Record<string, string> = {
   "ensign": "churchofjesuschrist.org/study/ensign",
   "friend": "churchofjesuschrist.org/study/friend",
   "handbooks": "churchofjesuschrist.org/study/manual/general-handbook",
+  // Come Follow Me aliases — resolve to the shared /manual/come-follow-me prefix
+  "come-follow-me": "churchofjesuschrist.org/study/manual/come-follow-me",
+  "cfm": "churchofjesuschrist.org/study/manual/come-follow-me",
+  "come follow me": "churchofjesuschrist.org/study/manual/come-follow-me",
+  // Other common manual aliases
+  "seminary": "churchofjesuschrist.org/study/manual",
+  "primary": "churchofjesuschrist.org/study/manual/come-follow-me-for-primary",
 };
 
 async function searchViaSitemap(

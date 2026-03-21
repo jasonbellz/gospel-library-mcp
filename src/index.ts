@@ -95,21 +95,29 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       name: "browse_category",
       description:
         "List articles and talks available in a Gospel Library category or collection. " +
-        "Returns titles and URLs. Useful for browsing conference sessions, " +
-        "scripture books, or magazine issues.",
+        "Returns titles and URLs. Useful for browsing conference sessions, scripture books, or magazine issues. " +
+        "IMPORTANT: Category paths must be exact. For manuals, paths are often year-specific — " +
+        "if you are unsure of the exact path, use search_gospel_library first to discover the correct URL. " +
+        "Come Follow Me paths include the year and audience, e.g. " +
+        "'manual/come-follow-me-for-individuals-and-families-new-testament-2023' or " +
+        "'manual/come-follow-me-for-sunday-school-new-testament-2023'. " +
+        "Do NOT guess a generic path like 'manual/come-follow-me' — it will 404.",
       inputSchema: {
         type: "object",
         properties: {
           category: {
             type: "string",
             description:
-              "Category path relative to /study/. Examples: " +
-              "'general-conference' (all conferences), " +
+              "Exact category path relative to /study/. Examples: " +
               "'general-conference/2024/10' (Oct 2024 conference), " +
+              "'general-conference/2025/04' (Apr 2025 conference), " +
               "'scriptures/bofm' (Book of Mormon), " +
               "'scriptures/nt' (New Testament), " +
               "'manual/general-handbook' (Church policies and procedures), " +
-              "'manual/gospel-topics'",
+              "'manual/gospel-topics', " +
+              "'manual/come-follow-me-for-individuals-and-families-new-testament-2023', " +
+              "'manual/come-follow-me-for-sunday-school-new-testament-2023'. " +
+              "When unsure, call search_gospel_library first.",
           },
         },
         required: ["category"],
@@ -190,12 +198,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "browse_category": {
         const { category } = args as { category: string };
         const page = await browseCategory(category);
+        if (page.notFound) {
+          return {
+            content: [{ type: "text", text: page.suggestion ?? `Category "${category}" was not found.` }],
+          };
+        }
         if (page.articles.length === 0) {
           return {
             content: [
               {
                 type: "text",
-                text: `No articles found in category "${category}". The category may not exist or may require JavaScript to render.`,
+                text: `No articles found in category "${category}". The category may not exist or may require JavaScript to render.\n\nTry using search_gospel_library to find content instead.`,
               },
             ],
           };

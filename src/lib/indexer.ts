@@ -28,6 +28,8 @@ const INDEXED_PATH_PATTERNS = [
   "/study/general-conference/",
   "/study/manual/general-handbook/",
   "/study/manual/gospel-topics/",
+  "/study/manual/come-follow-me-for-individuals-and-families-",
+  "/study/manual/come-follow-me-for-sunday-school-",
 ];
 
 const TITLE_FETCH_CONCURRENCY = 10;
