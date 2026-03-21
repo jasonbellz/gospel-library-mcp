@@ -32,6 +32,7 @@ import { getScripture } from "./tools/scripture.js";
 import { getIndexAgeDays, getDocumentCount, STALE_DAYS } from "./lib/vectorStore.js";
 import { buildIndex } from "./lib/indexer.js";
 import { refresh } from "./lib/refresh.js";
+import { downloadIndex } from "./lib/downloader.js";
 
 const server = new Server(
   { name: "gospel-library", version: "2.0.0" },
@@ -257,6 +258,25 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
 // ── Start server ──────────────────────────────────────────────────────────────
 
+async function runDownloadIndex() {
+  console.log("Gospel Library MCP — Downloading pre-built index\n");
+  console.log("Source: github.com/jasonbellz/gospel-library-mcp (latest release)\n");
+
+  await downloadIndex((downloaded, total) => {
+    if (total > 0) {
+      const pct = Math.round((downloaded / total) * 100);
+      const mb = (downloaded / 1024 / 1024).toFixed(1);
+      const totalMb = (total / 1024 / 1024).toFixed(1);
+      process.stdout.write(`\r[${pct}%] ${mb} / ${totalMb} MB...    `);
+    } else {
+      const mb = (downloaded / 1024 / 1024).toFixed(1);
+      process.stdout.write(`\r${mb} MB downloaded...    `);
+    }
+  });
+
+  console.log("\n\nDone! Restart Copilot CLI to use semantic search.");
+}
+
 async function runBuildIndex() {
   console.log("Gospel Library MCP — Building vector search index\n");
   console.log("This will index ~10,000+ articles for semantic search.");
@@ -294,6 +314,11 @@ async function runRefresh() {
 async function main() {
   const cmd = process.argv[2];
 
+  if (cmd === "download-index") {
+    await runDownloadIndex();
+    return;
+  }
+
   if (cmd === "build-index") {
     await runBuildIndex();
     return;
@@ -316,7 +341,8 @@ async function main() {
   } else if (docCount === 0) {
     process.stderr.write(
       `[gospel-library] Vector index not built — using slug-based search.\n` +
-      `  For semantic search, run: npx @jasonbellz/gospel-library-mcp build-index\n`
+      `  Fast setup (~30s): npx @jasonbellz/gospel-library-mcp download-index\n` +
+      `  Build fresh (15-30m): npx @jasonbellz/gospel-library-mcp build-index\n`
     );
   }
 

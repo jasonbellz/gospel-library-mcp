@@ -10,7 +10,7 @@ import * as os from "os";
 import * as fs from "fs";
 import * as path from "path";
 
-const DB_DIR = path.join(os.homedir(), ".gospel-library-mcp");
+export const DB_DIR = path.join(os.homedir(), ".gospel-library-mcp");
 export const DB_PATH = path.join(DB_DIR, "index.db");
 
 export const STALE_DAYS = 30;

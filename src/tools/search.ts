@@ -41,7 +41,8 @@ export async function searchGospelLibrary(
   // Index not yet built — fall back to slug search and nudge the user
   process.stderr.write(
     "[gospel-library] Vector index not built — using slug-based search.\n" +
-    "  For semantic search, run: npx @jasonbellz/gospel-library-mcp build-index\n"
+    "  Fast setup (~30s): npx @jasonbellz/gospel-library-mcp download-index\n" +
+    "  Build fresh (15-30m): npx @jasonbellz/gospel-library-mcp build-index\n"
   );
   return searchViaSitemap(query, category, maxResults);
 }
