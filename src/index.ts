@@ -260,6 +260,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 async function runBuildIndex() {
   console.log("Gospel Library MCP — Building vector search index\n");
   console.log("This will index ~10,000+ articles for semantic search.");
+  console.log("Each article is indexed using its title + description for richer results.");
   console.log("Expected time: 15–30 minutes (model download on first run).\n");
 
   const { added, skipped } = await buildIndex(false, ({ current, total, message }) => {

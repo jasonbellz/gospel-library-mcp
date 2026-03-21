@@ -61,8 +61,28 @@ function slugToTitle(url: string): string {
     .trim() || url;
 }
 
-/** Fetch just the og:title from a page using a Range header (first 8 KB). */
-async function fetchTitle(url: string): Promise<string | null> {
+interface PageMetadata {
+  title: string;
+  excerpt: string | null;
+}
+
+/** Decode common HTML entities from meta tag content. */
+function decodeEntities(s: string): string {
+  return s
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)));
+}
+
+/**
+ * Fetch the og:title and og:description from a page using a Range header
+ * (first 16 KB is enough to capture the full <head> section).
+ */
+async function fetchTitleAndExcerpt(url: string): Promise<PageMetadata | null> {
   try {
     const langUrl = url.includes("lang=")
       ? url
@@ -70,28 +90,43 @@ async function fetchTitle(url: string): Promise<string | null> {
 
     const res = await fetch(langUrl, {
       headers: {
-        Range: "bytes=0-8191",
+        Range: "bytes=0-16383",
         "Accept-Language": "en-US,en;q=0.9",
-        "User-Agent": "GospelLibraryMCP-Indexer/2.0",
+        "User-Agent": "GospelLibraryMCP-Indexer/2.1",
       },
     });
     if (!res.ok) return null;
     const html = await res.text();
 
     // og:title (two attribute orderings)
-    const og =
+    const ogTitle =
       html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i) ??
       html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["']/i);
-    if (og) return og[1].trim();
 
-    // <title> fallback — strip site name suffix
-    const t = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-    if (t) {
-      return t[1]
-        .replace(/ [-–|] The Church of Jesus Christ of Latter-day Saints$/i, "")
-        .trim();
+    let title: string | null = ogTitle ? decodeEntities(ogTitle[1].trim()) : null;
+
+    // <title> fallback
+    if (!title) {
+      const t = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+      if (t) {
+        title = decodeEntities(
+          t[1].replace(/ [-–|] The Church of Jesus Christ of Latter-day Saints$/i, "").trim()
+        );
+      }
     }
-    return null;
+
+    if (!title) return null;
+
+    // og:description — provides a meaningful summary of the article content
+    const ogDesc =
+      html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i) ??
+      html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:description["']/i) ??
+      html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i) ??
+      html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']description["']/i);
+
+    const excerpt = ogDesc ? decodeEntities(ogDesc[1].trim()) : null;
+
+    return { title, excerpt };
   } catch {
     return null;
   }
@@ -207,29 +242,33 @@ export async function buildIndex(
     return { added: 0, skipped: allCandidateUrls.length };
   }
 
-  // Phase 1 — Fetch titles (parallel, rate-limited)
+  // Phase 1 — Fetch title + description (parallel, rate-limited)
   onProgress({
     current: 0,
     total: urlsToIndex.length,
-    message: "Fetching page titles...",
+    message: "Fetching page titles and descriptions...",
   });
 
   let titlesFetched = 0;
-  const entries: Array<{ url: string; title: string; category: string }> =
+  const entries: Array<{ url: string; title: string; embedText: string; category: string }> =
     await mapConcurrent(
       urlsToIndex,
       async (url) => {
-        const raw = await fetchTitle(url);
-        const title = raw ?? slugToTitle(url);
+        const meta = await fetchTitleAndExcerpt(url);
+        const title = meta?.title ?? slugToTitle(url);
+        // Combine title + description for a richer semantic signal
+        const embedText = meta?.excerpt
+          ? `${title}. ${meta.excerpt}`
+          : title;
         titlesFetched++;
         if (titlesFetched % 100 === 0) {
           onProgress({
             current: titlesFetched,
             total: urlsToIndex.length,
-            message: `Fetching titles (${titlesFetched}/${urlsToIndex.length})...`,
+            message: `Fetching metadata (${titlesFetched}/${urlsToIndex.length})...`,
           });
         }
-        return { url, title, category: getCategory(url) };
+        return { url, title, embedText, category: getCategory(url) };
       },
       TITLE_FETCH_CONCURRENCY
     );
@@ -248,7 +287,7 @@ export async function buildIndex(
 
     for (const entry of batch) {
       // showProgress=true on first embed call so model download is visible
-      const embedding = await embed(entry.title, embedded === 0);
+      const embedding = await embed(entry.embedText, embedded === 0);
       docs.push({
         url: entry.url,
         title: entry.title,
