@@ -61,7 +61,26 @@ When a question is clearly about Church topics, call the relevant tool FIRST bef
 ## Building the Semantic Search Index
 
 Without the index, search falls back to URL slug matching (still useful, just less precise).
-For semantic search — which finds articles by *meaning* rather than exact keywords — build the index once:
+For semantic search — which finds articles by *meaning* rather than exact keywords — you need a local index.
+
+### Option 1: Download the Pre-Built Index (Recommended, ~30 seconds)
+
+Download a pre-built `index.db` from the latest GitHub Release:
+
+```bash
+npx @jasonbellz/gospel-library-mcp download-index
+```
+
+**What it does:**
+- Downloads the pre-built `index.db` (~12.5 MB) from the [latest GitHub Release](https://github.com/jasonbellz/gospel-library-mcp/releases/latest)
+- Saves it to `~/.gospel-library-mcp/index.db`
+- Shows live download progress
+
+**Expected time:** ~30 seconds
+
+### Option 2: Build the Index Locally (15–30 minutes)
+
+Build the index from scratch by crawling the live sitemap:
 
 ```bash
 npx @jasonbellz/gospel-library-mcp build-index
@@ -70,7 +89,7 @@ npx @jasonbellz/gospel-library-mcp build-index
 **What it does:**
 - Downloads the English sitemaps (~50k URLs)
 - Filters to indexed categories: General Conference talks, General Handbook, Gospel Topics essays (~10,000+ pages)
-- Fetches the title of each page
+- Fetches the title and description of each page
 - Generates 384-dimension embeddings using `Xenova/all-MiniLM-L6-v2` (runs locally, ~25 MB download on first run)
 - Stores everything in `~/.gospel-library-mcp/index.db`
 
