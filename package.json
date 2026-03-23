@@ -1,6 +1,6 @@
 {
   "name": "@jasonbellz/gospel-library-mcp",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "MCP server for GitHub Copilot CLI — provides access to the Church of Jesus Christ Gospel Library (scriptures, General Conference talks, handbooks, and more)",
   "main": "dist/index.js",
   "bin": {
