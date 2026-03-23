@@ -17,6 +17,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { isIndexBuilt, searchByVector } from "../lib/vectorStore.js";
 import { embed } from "../lib/embedder.js";
+import { DEFAULT_LANG } from "../lib/locale.js";
 
 const SITEMAP_INDEX = "https://sitemaps.churchofjesuschrist.org/sitemap-service/www.churchofjesuschrist.org/en/index.xml";
 const CACHE_FILE = path.join(os.tmpdir(), "gospel-library-sitemap-cache.json");
@@ -65,7 +66,7 @@ async function searchViaVectors(
     title: r.title,
     url: r.url.includes("lang=")
       ? r.url
-      : `${r.url}${r.url.includes("?") ? "&" : "?"}lang=eng`,
+      : `${r.url}${r.url.includes("?") ? "&" : "?"}lang=${DEFAULT_LANG}`,
     snippet: `Relevance: ${(r.score * 100).toFixed(0)}% — Use get_article to read full content.`,
   }));
 }
@@ -188,7 +189,7 @@ async function searchViaSitemap(
 
   return scored.map(({ url }) => ({
     title: slugToTitle(url),
-    url: url.includes("lang=") ? url : `${url}${url.includes("?") ? "&" : "?"}lang=eng`,
+    url: url.includes("lang=") ? url : `${url}${url.includes("?") ? "&" : "?"}lang=${DEFAULT_LANG}`,
     snippet: "Use get_article to read full content.",
   }));
 }

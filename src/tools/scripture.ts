@@ -6,6 +6,7 @@
  */
 
 import { getArticle, ArticleContent } from "./fetch.js";
+import { DEFAULT_LANG } from "../lib/locale.js";
 
 const BASE = "https://www.churchofjesuschrist.org";
 
@@ -113,8 +114,8 @@ export interface ScriptureResult extends ArticleContent {
  * Fetch a scripture passage by reference.
  * Examples: "John 3:16", "2 Nephi 2:25", "D&C 76", "Moses 1:39"
  */
-export async function getScripture(reference: string): Promise<ScriptureResult> {
-  const url = referenceToUrl(reference);
+export async function getScripture(reference: string, lang?: string): Promise<ScriptureResult> {
+  const url = referenceToUrl(reference, lang ?? DEFAULT_LANG);
   const article = await getArticle(url);
   return { ...article, reference };
 }
@@ -122,7 +123,7 @@ export async function getScripture(reference: string): Promise<ScriptureResult> 
 /**
  * Convert a scripture reference string to a Gospel Library URL.
  */
-export function referenceToUrl(reference: string): string {
+export function referenceToUrl(reference: string, lang: string = DEFAULT_LANG): string {
   const ref = reference.trim();
 
   // Try to parse: "<book> <chapter>:<verse>" or "<book> <chapter>"
@@ -152,7 +153,7 @@ export function referenceToUrl(reference: string): string {
     path += `.${verseStart}`;
     if (verseEnd) path += `-${verseEnd}`;
   }
-  path += `?lang=eng`;
+  path += `?lang=${lang}`;
 
   if (verseStart) {
     path += `#p${verseStart}`;

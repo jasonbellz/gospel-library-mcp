@@ -33,6 +33,7 @@ import { getIndexAgeDays, getDocumentCount, STALE_DAYS } from "./lib/vectorStore
 import { buildIndex } from "./lib/indexer.js";
 import { refresh } from "./lib/refresh.js";
 import { downloadIndex } from "./lib/downloader.js";
+import { DEFAULT_LANG } from "./lib/locale.js";
 
 const server = new Server(
   { name: "gospel-library", version: "2.0.0" },
@@ -78,7 +79,9 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       description:
         "Fetch the full content of a specific Gospel Library article, talk, " +
         "manual chapter, or policy page by URL. Returns clean markdown text. " +
-        "Use this after search_gospel_library to read the full content of an article.",
+        "Use this after search_gospel_library to read the full content of an article. " +
+        "Specify lang to retrieve content in a different language (e.g. 'spa' for Spanish). " +
+        "Defaults to the OS locale language.",
       inputSchema: {
         type: "object",
         properties: {
@@ -87,6 +90,14 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
             description:
               "The full URL of the article, e.g. " +
               "'https://www.churchofjesuschrist.org/study/general-conference/2024/10/12andersen?lang=eng'",
+          },
+          lang: {
+            type: "string",
+            description:
+              "Optional language code. Examples: 'eng' (English), 'spa' (Spanish), " +
+              "'por' (Portuguese), 'fra' (French), 'deu' (German), 'jpn' (Japanese), " +
+              "'kor' (Korean), 'zhs' (Chinese Simplified), 'zht' (Chinese Traditional), " +
+              "'rus' (Russian). Defaults to OS locale language.",
           },
         },
         required: ["url"],
@@ -102,7 +113,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         "Come Follow Me paths include the year and audience, e.g. " +
         "'manual/come-follow-me-for-individuals-and-families-new-testament-2023' or " +
         "'manual/come-follow-me-for-sunday-school-new-testament-2023'. " +
-        "Do NOT guess a generic path like 'manual/come-follow-me' — it will 404.",
+        "Do NOT guess a generic path like 'manual/come-follow-me' — it will 404. " +
+        "Specify lang to retrieve content in a different language. Defaults to OS locale language.",
       inputSchema: {
         type: "object",
         properties: {
@@ -120,6 +132,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
               "'manual/come-follow-me-for-sunday-school-new-testament-2023'. " +
               "When unsure, call search_gospel_library first.",
           },
+          lang: {
+            type: "string",
+            description:
+              "Optional language code. Examples: 'eng', 'spa', 'por', 'fra', 'deu'. " +
+              "Defaults to OS locale language.",
+          },
         },
         required: ["category"],
       },
@@ -130,7 +148,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         "Fetch a specific scripture passage by reference. " +
         "Supports the Bible (Old and New Testament), Book of Mormon, " +
         "Doctrine & Covenants, and Pearl of Great Price. " +
-        "Returns the chapter content as markdown.",
+        "Returns the chapter content as markdown. " +
+        "Specify lang to retrieve the passage in a different language. Defaults to OS locale language.",
       inputSchema: {
         type: "object",
         properties: {
@@ -140,6 +159,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
               "Scripture reference in standard format. Examples: " +
               "'John 3:16', '2 Nephi 2:25', 'D&C 76:22', 'Moses 1:39', " +
               "'Alma 32:21', 'Moroni 10:4-5'",
+          },
+          lang: {
+            type: "string",
+            description:
+              "Optional language code. Examples: 'eng', 'spa', 'por', 'fra', 'deu'. " +
+              "Defaults to OS locale language.",
           },
         },
         required: ["reference"],
@@ -181,8 +206,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "get_article": {
-        const { url } = args as { url: string };
-        const article = await getArticle(url);
+        const { url, lang } = args as { url: string; lang?: string };
+        const article = await getArticle(url, lang);
         const header = article.author
           ? `# ${article.title}\n*by ${article.author}*\n\n`
           : `# ${article.title}\n\n`;
@@ -197,8 +222,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "browse_category": {
-        const { category } = args as { category: string };
-        const page = await browseCategory(category);
+        const { category, lang } = args as { category: string; lang?: string };
+        const page = await browseCategory(category, lang);
         if (page.notFound) {
           return {
             content: [{ type: "text", text: page.suggestion ?? `Category "${category}" was not found.` }],
@@ -232,8 +257,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "get_scripture": {
-        const { reference } = args as { reference: string };
-        const result = await getScripture(reference);
+        const { reference, lang } = args as { reference: string; lang?: string };
+        const result = await getScripture(reference, lang);
         return {
           content: [
             {
@@ -332,6 +357,13 @@ async function main() {
   // MCP server mode — warn if the index is stale
   const ageDays = getIndexAgeDays();
   const docCount = getDocumentCount();
+
+  if (DEFAULT_LANG !== "eng") {
+    process.stderr.write(
+      `[gospel-library] Language: ${DEFAULT_LANG} (detected from OS locale). ` +
+      `Content will be served in this language. Search index is English.\n`
+    );
+  }
 
   if (docCount > 0 && ageDays > STALE_DAYS) {
     process.stderr.write(

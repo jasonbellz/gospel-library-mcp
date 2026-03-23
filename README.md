@@ -4,7 +4,7 @@ An [MCP (Model Context Protocol)](https://modelcontextprotocol.io) server for [G
 
 **No API key required. No external service. Everything runs locally.**
 
-Search is powered by a local semantic vector index using the `all-MiniLM-L6-v2` model. When the index is built, Copilot finds articles by *meaning* — not just URL keywords.
+Search is powered by a local semantic vector index using the `all-MiniLM-L6-v2` model. When the index is built, Copilot finds articles by *meaning* — not just URL keywords. Content is served in your OS locale language automatically, with per-request language override support.
 
 ---
 
@@ -147,6 +147,7 @@ Fetch the full content of a specific article, talk, manual chapter, or policy pa
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `url` | string | ✅ | Full `https://www.churchofjesuschrist.org/...` URL |
+| `lang` | string | ❌ | Language code (e.g. `'spa'`, `'por'`, `'fra'`). Defaults to OS locale |
 
 **Example URL:** `https://www.churchofjesuschrist.org/study/general-conference/2024/10/12andersen?lang=eng`
 
@@ -159,6 +160,7 @@ List all articles and talks in a category or collection. Returns titles and URLs
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `category` | string | ✅ | Path relative to `/study/` — see table below |
+| `lang` | string | ❌ | Language code (e.g. `'spa'`, `'por'`, `'fra'`). Defaults to OS locale |
 
 **Common category paths:**
 
@@ -185,6 +187,7 @@ Fetch a specific scripture passage by reference. Parses the reference, construct
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `reference` | string | ✅ | Scripture reference (e.g. `'John 3:16'`, `'2 Nephi 2:25'`, `'D&C 76:22'`) |
+| `lang` | string | ❌ | Language code (e.g. `'spa'`, `'por'`, `'fra'`). Defaults to OS locale |
 
 **Supported reference formats:**
 - Full chapter: `Genesis 1`, `Alma 32`
@@ -307,6 +310,50 @@ Fetch a specific scripture passage by reference. Parses the reference, construct
 | Joseph Smith Matthew | `JS-M` |
 | Articles of Faith | `A of F` |
 </details>
+
+---
+
+## Multilingual Support
+
+The MCP server automatically detects your OS locale at startup and serves content in that language. No configuration required.
+
+**How it works:**
+- **Search** always uses the English index (cross-lingual retrieval — the embedding model is multilingual)
+- **Content** (`get_article`, `browse_category`, `get_scripture`) is served in your OS locale language by default
+- Every tool accepts an optional `lang` parameter to override per-request
+
+**Override language per-request:**
+> "Read Alma 32 in Spanish"
+→ `get_scripture(reference: "Alma 32", lang: "spa")`
+
+> "Get that talk in Portuguese"
+→ `get_article(url: "...", lang: "por")`
+
+**Supported language codes:**
+
+| Code | Language | Code | Language |
+|------|----------|------|----------|
+| `eng` | English | `spa` | Spanish |
+| `por` | Portuguese | `fra` | French |
+| `deu` | German | `ita` | Italian |
+| `jpn` | Japanese | `kor` | Korean |
+| `zhs` | Chinese (Simplified) | `zht` | Chinese (Traditional) |
+| `rus` | Russian | `tgl` | Filipino / Tagalog |
+| `nld` | Dutch | `swe` | Swedish |
+| `nor` | Norwegian | `dan` | Danish |
+| `fin` | Finnish | `pol` | Polish |
+| `ukr` | Ukrainian | `hun` | Hungarian |
+| `ces` | Czech | `ron` | Romanian |
+| `bul` | Bulgarian | `ell` | Greek |
+| `tur` | Turkish | `ara` | Arabic |
+| `heb` | Hebrew | `tha` | Thai |
+| `ind` | Indonesian | `msa` | Malay |
+| `vie` | Vietnamese | `khm` | Khmer |
+| `mya` | Burmese | `mon` | Mongolian |
+| `smo` | Samoan | `ton` | Tongan |
+| `haw` | Hawaiian | `mao` | Māori |
+
+> **Note:** Not all content is available in every language. English content is the most complete.
 
 ---
 

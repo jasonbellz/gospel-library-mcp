@@ -8,8 +8,7 @@
 import fetch from "node-fetch";
 import * as cheerio from "cheerio";
 import TurndownService from "turndown";
-
-const LANG = "eng";
+import { DEFAULT_LANG } from "../lib/locale.js";
 const turndown = new TurndownService({
   headingStyle: "atx",
   bulletListMarker: "-",
@@ -36,10 +35,10 @@ export interface ArticleContent {
 /**
  * Fetch an article from the Gospel Library and return its content as markdown.
  * The url should be a full https://www.churchofjesuschrist.org/... URL.
- * If lang=eng is not already present, it is appended automatically.
+ * If a lang code is not already in the URL, the OS default language is used.
  */
-export async function getArticle(inputUrl: string): Promise<ArticleContent> {
-  const url = ensureLang(inputUrl);
+export async function getArticle(inputUrl: string, lang?: string): Promise<ArticleContent> {
+  const url = ensureLang(inputUrl, lang);
 
   const response = await fetch(url, {
     headers: {
@@ -108,11 +107,13 @@ export async function getArticle(inputUrl: string): Promise<ArticleContent> {
   return { title, author: author || undefined, url, content };
 }
 
-function ensureLang(url: string): string {
+function ensureLang(url: string, override?: string): string {
   try {
     const parsed = new URL(url);
-    if (!parsed.searchParams.has("lang")) {
-      parsed.searchParams.set("lang", LANG);
+    if (override) {
+      parsed.searchParams.set("lang", override);
+    } else if (!parsed.searchParams.has("lang")) {
+      parsed.searchParams.set("lang", DEFAULT_LANG);
     }
     return parsed.toString();
   } catch {

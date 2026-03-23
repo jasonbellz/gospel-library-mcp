@@ -7,9 +7,9 @@
 
 import fetch from "node-fetch";
 import * as cheerio from "cheerio";
+import { DEFAULT_LANG } from "../lib/locale.js";
 
 const BASE = "https://www.churchofjesuschrist.org";
-const LANG = "eng";
 
 export interface ArticleLink {
   title: string;
@@ -30,9 +30,10 @@ export interface CategoryPage {
  * @param category - a path like "general-conference", "general-conference/2024/10",
  *                   "scriptures", "scriptures/bofm", etc.
  */
-export async function browseCategory(category: string): Promise<CategoryPage> {
+export async function browseCategory(category: string, lang?: string): Promise<CategoryPage> {
   const cleanCategory = category.replace(/^\/+|\/+$/g, "");
-  const url = `${BASE}/study/${cleanCategory}?lang=${LANG}`;
+  const useLang = lang ?? DEFAULT_LANG;
+  const url = `${BASE}/study/${cleanCategory}?lang=${useLang}`;
 
   const response = await fetch(url, {
     headers: {
@@ -98,7 +99,7 @@ export async function browseCategory(category: string): Promise<CategoryPage> {
     if (!articles.some((a) => a.url === fullUrl)) {
       articles.push({
         title: title.replace(/\s+/g, " ").trim(),
-        url: ensureLang(fullUrl),
+        url: ensureLang(fullUrl, useLang),
         description,
       });
     }
@@ -107,11 +108,11 @@ export async function browseCategory(category: string): Promise<CategoryPage> {
   return { title: pageTitle, url, articles };
 }
 
-function ensureLang(url: string): string {
+function ensureLang(url: string, lang: string = DEFAULT_LANG): string {
   try {
     const parsed = new URL(url);
     if (!parsed.searchParams.has("lang")) {
-      parsed.searchParams.set("lang", LANG);
+      parsed.searchParams.set("lang", lang);
     }
     return parsed.toString();
   } catch {
