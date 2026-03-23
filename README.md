@@ -3,26 +3,30 @@
 > **Unofficial tool. Not affiliated with or endorsed by The Church of Jesus Christ of Latter-day Saints.**
 > See [DISCLAIMER.md](./DISCLAIMER.md) for full details.
 
-An [MCP (Model Context Protocol)](https://modelcontextprotocol.io) server for [GitHub Copilot CLI](https://docs.github.com/copilot/concepts/agents/about-copilot-cli) that gives Copilot always-available, proactive access to the [Church of Jesus Christ Gospel Library](https://www.churchofjesuschrist.org/) — scriptures, General Conference talks, handbooks, manuals, and magazines.
+An [MCP (Model Context Protocol)](https://modelcontextprotocol.io) server that gives AI agents direct, structured access to the [Church of Jesus Christ Gospel Library](https://www.churchofjesuschrist.org/) — scriptures, General Conference talks, handbooks, manuals, and magazines.
+
+**Compatible with any MCP-enabled AI agent**, including GitHub Copilot CLI, Claude Desktop, Claude Code, Cursor, Windsurf, and others.
 
 **No API key required. No external service. Everything runs locally.**
 
-Search is powered by a local semantic vector index using the `all-MiniLM-L6-v2` model. When the index is built, Copilot finds articles by *meaning* — not just URL keywords. Content is served in your OS locale language automatically, with per-request language override support.
+Search is powered by a local semantic vector index using the `all-MiniLM-L6-v2` model. When the index is built, the agent finds articles by *meaning* — not just URL keywords. Content is served in your OS locale language automatically, with per-request language override support.
 
 ---
 
 ## Requirements
 
 - **Node.js ≥ 18**
-- **GitHub Copilot CLI** (the host agent)
+- Any **MCP-compatible AI agent** (see setup below)
 
 ---
 
 ## Quick Setup
 
-### 1. Register the MCP server
+The MCP server configuration format is the same across all agents. Pick your agent below.
 
-Add the following to `~/.copilot/mcp-config.json` (create the file if it doesn't exist):
+### GitHub Copilot CLI
+
+Add to `~/.copilot/mcp-config.json` (create if it doesn't exist):
 
 ```json
 {
@@ -37,9 +41,68 @@ Add the following to `~/.copilot/mcp-config.json` (create the file if it doesn't
 
 Restart Copilot CLI and run `/mcp` — you should see `gospel-library` listed with 4 tools.
 
-### 2. (Optional) Add Copilot instructions for proactive use
+### Claude Desktop
 
-Add the following to `~/.copilot/copilot-instructions.md` (create if it doesn't exist) so Copilot automatically uses the Gospel Library tools when answering relevant questions:
+Add to your Claude Desktop config file:
+- **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "gospel-library": {
+      "command": "npx",
+      "args": ["-y", "@jasonbellz/gospel-library-mcp"]
+    }
+  }
+}
+```
+
+Restart Claude Desktop. The tools will be available automatically.
+
+### Claude Code (CLI)
+
+```bash
+claude mcp add gospel-library -- npx -y @jasonbellz/gospel-library-mcp
+```
+
+### Cursor
+
+Add to `~/.cursor/mcp.json` (global) or `.cursor/mcp.json` (project-level):
+
+```json
+{
+  "mcpServers": {
+    "gospel-library": {
+      "command": "npx",
+      "args": ["-y", "@jasonbellz/gospel-library-mcp"]
+    }
+  }
+}
+```
+
+### Windsurf
+
+Add to `~/.codeium/windsurf/mcp_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "gospel-library": {
+      "command": "npx",
+      "args": ["-y", "@jasonbellz/gospel-library-mcp"]
+    }
+  }
+}
+```
+
+### Other MCP-Compatible Agents
+
+Any agent that supports the MCP `stdio` transport uses the same `mcpServers` JSON block. Consult your agent's documentation for the config file location.
+
+### (Optional) Add Agent Instructions for Proactive Use
+
+Tell your agent to use the Gospel Library tools automatically when answering Church-related questions. Add the following to your agent's system prompt or instructions file:
 
 ```markdown
 ## Gospel Library MCP
@@ -58,6 +121,10 @@ Use the Gospel Library MCP tools whenever the user asks about:
 
 When a question is clearly about Church topics, call the relevant tool FIRST before answering.
 ```
+
+- **GitHub Copilot CLI:** add to `~/.copilot/copilot-instructions.md`
+- **Claude Desktop / Claude Code:** add to your project's `CLAUDE.md` or system prompt
+- **Cursor:** add to `.cursorrules` or project instructions
 
 ---
 
@@ -118,7 +185,7 @@ npx @jasonbellz/gospel-library-mcp refresh
 
 Search the Gospel Library for articles, talks, scriptures, manuals, and policies.
 
-**When the index is built:** uses cosine similarity over the local vector index for semantic search.
+**When the index is built:** uses cosine similarity over the local vector index for semantic search — finds articles by *meaning*.
 **Before the index is built:** falls back to URL slug keyword matching.
 
 | Parameter | Type | Required | Description |
@@ -364,10 +431,18 @@ The MCP server automatically detects your OS locale at startup and serves conten
 
 | Path | Purpose |
 |------|---------|
-| `~/.copilot/mcp-config.json` | Registers the MCP server with Copilot CLI |
-| `~/.copilot/copilot-instructions.md` | (Optional) Tells Copilot when to use the tools proactively |
-| `~/.gospel-library-mcp/index.db` | SQLite vector index (~17 MB when built) |
-| `~/.cache/huggingface/` | Cached embedding model (~25 MB, downloaded once) |
+| `~/.gospel-library-mcp/index.db` | SQLite vector index (~12.5 MB pre-built, ~17 MB when built locally) |
+| `~/.cache/huggingface/` | Cached embedding model (~25 MB, downloaded once on first `build-index`) |
+
+**Agent config files** (you create these — see [Quick Setup](#quick-setup) above):
+
+| Agent | Config file |
+|-------|-------------|
+| GitHub Copilot CLI | `~/.copilot/mcp-config.json` |
+| Claude Desktop (macOS) | `~/Library/Application Support/Claude/claude_desktop_config.json` |
+| Claude Desktop (Windows) | `%APPDATA%\Claude\claude_desktop_config.json` |
+| Cursor | `~/.cursor/mcp.json` |
+| Windsurf | `~/.codeium/windsurf/mcp_config.json` |
 
 ---
 
@@ -402,15 +477,22 @@ git clone https://github.com/jasonbellz/gospel-library-mcp
 cd gospel-library-mcp
 npm install
 npm run build
-
-# Register using local dist/ (for development)
-node setup.js
-
-# Or register using the published npm package
-node setup.js --npx
 ```
 
-The `setup.js` script writes the correct entry to `~/.copilot/mcp-config.json` automatically.
+Then add `dist/index.js` as the command in your agent's MCP config:
+
+```json
+{
+  "mcpServers": {
+    "gospel-library": {
+      "command": "node",
+      "args": ["/path/to/gospel-library-mcp/dist/index.js"]
+    }
+  }
+}
+```
+
+Or use `node setup.js` to auto-register with GitHub Copilot CLI, or `node setup.js --npx` to register using the published npm package.
 
 ## Publishing a New Version
 
