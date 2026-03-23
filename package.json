@@ -8,7 +8,9 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "LICENSE",
+    "DISCLAIMER.md"
   ],
   "engines": {
     "node": ">=18"
@@ -33,7 +35,7 @@
     "ai"
   ],
   "author": "jasonbellz",
-  "license": "ISC",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/jasonbellz/gospel-library-mcp.git"

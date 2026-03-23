@@ -1,5 +1,8 @@
 # Gospel Library MCP Server
 
+> **Unofficial tool. Not affiliated with or endorsed by The Church of Jesus Christ of Latter-day Saints.**
+> See [DISCLAIMER.md](./DISCLAIMER.md) for full details.
+
 An [MCP (Model Context Protocol)](https://modelcontextprotocol.io) server for [GitHub Copilot CLI](https://docs.github.com/copilot/concepts/agents/about-copilot-cli) that gives Copilot always-available, proactive access to the [Church of Jesus Christ Gospel Library](https://www.churchofjesuschrist.org/) — scriptures, General Conference talks, handbooks, manuals, and magazines.
 
 **No API key required. No external service. Everything runs locally.**
@@ -424,3 +427,20 @@ git commit -m "chore: bump to vX.Y.Z"
 git push
 ```
 
+---
+
+## Disclaimer
+
+This project is an independent, unofficial tool and is **not affiliated with, endorsed by, or sponsored by The Church of Jesus Christ of Latter-day Saints.**
+
+The Church of Jesus Christ of Latter-day Saints, Book of Mormon, Liahona, Mormon, LDS, CTR, and FamilySearch are trademarks of The Church of Jesus Christ of Latter-day Saints or Intellectual Reserve, Inc., and may be registered in the United States of America and other countries. Use of these marks does not imply endorsement by or affiliation with The Church of Jesus Christ of Latter-day Saints.
+
+All Gospel Library content accessed through this tool is the property of The Church of Jesus Christ of Latter-day Saints or Intellectual Reserve, Inc. This tool provides a programmatic interface to publicly accessible content at [churchofjesuschrist.org](https://www.churchofjesuschrist.org) and does not host, copy, or redistribute that content.
+
+See [DISCLAIMER.md](./DISCLAIMER.md) for full details. For official trademark guidelines, visit [churchofjesuschrist.org/reference/trademark-guidelines](https://www.churchofjesuschrist.org/reference/trademark-guidelines).
+
+---
+
+## License
+
+[MIT](./LICENSE) © 2026 Jason Bell
