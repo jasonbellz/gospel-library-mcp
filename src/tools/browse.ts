@@ -82,6 +82,9 @@ export async function browseCategory(category: string, lang?: string): Promise<C
       "[class*='lc-nav'], [class*='lc-header'], [class*='lc-footer']"
   ).remove();
 
+  // Compute depth of the current category URL for ancestor-link filtering.
+  const currentDepth = url.split("?")[0].split("/").filter(Boolean).length;
+
   // Find all internal study links
   $("a[href]").each((_i, el) => {
     const href = $(el).attr("href") || "";
@@ -96,6 +99,11 @@ export async function browseCategory(category: string, lang?: string): Promise<C
     const normalised = fullUrl.split("?")[0];
     const currentPath = url.split("?")[0];
     if (normalised === currentPath) return;
+
+    // Skip ancestor/parent links (e.g. decade nav "2020–2024" on a year/month page).
+    // Any link shallower than the current page is a back-navigation link, not content.
+    const linkDepth = normalised.split("/").filter(Boolean).length;
+    if (linkDepth < currentDepth) return;
 
     const title = $(el).find("h4, h3, h2, h5, strong").first().text().trim()
       || $(el).text().trim();
