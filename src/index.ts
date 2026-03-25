@@ -148,7 +148,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         "Fetch a specific scripture passage by reference. " +
         "Supports the Bible (Old and New Testament), Book of Mormon, " +
         "Doctrine & Covenants, and Pearl of Great Price. " +
-        "Returns the chapter content as markdown. " +
+        "Returns only the requested verse(s) as markdown. " +
         "Specify lang to retrieve the passage in a different language. Defaults to OS locale language.",
       inputSchema: {
         type: "object",

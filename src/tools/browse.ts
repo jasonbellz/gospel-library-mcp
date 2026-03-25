@@ -74,6 +74,14 @@ export async function browseCategory(category: string, lang?: string): Promise<C
 
   const articles: ArticleLink[] = [];
 
+  // Remove navigation and breadcrumb elements before scanning for article links
+  // so that parent-path "back" links don't appear in the results list.
+  $(
+    "header, footer, nav, .nav, " +
+      "[class*='breadcrumb'], [class*='navigation'], " +
+      "[class*='lc-nav'], [class*='lc-header'], [class*='lc-footer']"
+  ).remove();
+
   // Find all internal study links
   $("a[href]").each((_i, el) => {
     const href = $(el).attr("href") || "";

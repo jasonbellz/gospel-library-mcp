@@ -74,7 +74,28 @@ async function searchViaVectors(
     }
   }
 
-  const results = Array.from(seen.values())
+  const deduped = Array.from(seen.values());
+
+  // Boost results whose title or URL slug closely matches the query.
+  // Pure vector similarity can rank semantically-adjacent content above the
+  // canonical page for a well-known topic (e.g. "Word of Wisdom"). A small
+  // lexical boost on exact title/slug matches corrects this.
+  const queryLower = query.toLowerCase();
+  const querySlug = queryLower.replace(/\s+/g, "-");
+  const queryTerms = queryLower.split(/\s+/).filter((t) => t.length > 2);
+
+  for (const r of deduped) {
+    const titleLower = r.title.toLowerCase();
+    const slug = r.url.replace(/[?#].*$/, "").split("/").pop()?.toLowerCase() ?? "";
+    if (titleLower.includes(queryLower)) r.score += 0.15;
+    if (slug.includes(querySlug)) r.score += 0.10;
+    if (queryTerms.length > 0) {
+      const matched = queryTerms.filter((t) => titleLower.includes(t)).length;
+      r.score += (matched / queryTerms.length) * 0.05;
+    }
+  }
+
+  const results = deduped
     .sort((a, b) => b.score - a.score)
     .slice(0, maxResults);
 

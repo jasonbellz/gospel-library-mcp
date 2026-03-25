@@ -15,14 +15,17 @@ const turndown = new TurndownService({
   codeBlockStyle: "fenced",
 });
 
-// Remove footnote reference links (they are inline anchors with no useful text)
+// Strip footnote reference anchors but preserve their text content.
+// Gospel Library wraps footnoted scripture words in <a class="study-note-ref">
+// (class contains "note-ref"), so returning "" here would silently delete those
+// words from the output. Returning the content keeps the word while dropping the link.
 turndown.addRule("footnoteAnchors", {
   filter: (node) => {
     if (node.nodeName !== "A") return false;
     const el = node as unknown as { getAttribute?: (attr: string) => string | null };
     return el.getAttribute?.("class")?.includes("note-ref") === true;
   },
-  replacement: () => "",
+  replacement: (content) => content.trim(),
 });
 
 export interface ArticleContent {
@@ -66,6 +69,10 @@ export async function getArticle(inputUrl: string, lang?: string): Promise<Artic
     $(".author-name").first().text().trim() ||
     $("[class*='author']").first().text().trim() ||
     undefined;
+
+  // Remove inline footnote marker superscripts (the small "a", "b", "c" letters
+  // that annotate footnoted words in scripture pages) before markdown conversion.
+  $("a[class*='note-ref'] sup").remove();
 
   // Remove non-content elements
   $(
@@ -119,4 +126,62 @@ function ensureLang(url: string, override?: string): string {
   } catch {
     return url;
   }
+}
+
+/**
+ * Fetch a scripture passage and return only the requested verse(s) as markdown.
+ *
+ * Looks up verse elements by their `#p{N}` IDs in the Gospel Library HTML.
+ * If verseStart is provided, only verses verseStart..verseEnd are returned.
+ * Falls back to the full article if the verse IDs are not found on the page.
+ */
+export async function getArticleVerses(
+  inputUrl: string,
+  verseStart?: number,
+  verseEnd?: number
+): Promise<ArticleContent> {
+  const url = ensureLang(inputUrl);
+
+  const response = await fetch(url, {
+    headers: {
+      "Accept-Language": "en-US,en;q=0.9",
+      "User-Agent":
+        "Mozilla/5.0 (compatible; GospelLibraryMCP/1.0; +https://github.com)",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch ${url}: HTTP ${response.status}`);
+  }
+
+  const html = await response.text();
+  const $ = cheerio.load(html);
+
+  const title =
+    $("meta[property='og:title']").attr("content") ||
+    $("h1").first().text().trim() ||
+    $("title").text().trim();
+
+  // Remove inline footnote marker superscripts before conversion.
+  $("a[class*='note-ref'] sup").remove();
+
+  if (verseStart !== undefined) {
+    const end = verseEnd ?? verseStart;
+    const parts: string[] = [];
+
+    for (let v = verseStart; v <= end; v++) {
+      const el = $(`#p${v}`);
+      if (el.length) {
+        parts.push(turndown.turndown($.html(el) ?? "").trim());
+      }
+    }
+
+    if (parts.length > 0) {
+      return { title, url, content: parts.join("\n\n") };
+    }
+    // Verse IDs not found on this page — fall through to full chapter below.
+  }
+
+  // No verse range or verse IDs not found: return the full article.
+  return getArticle(url);
 }

@@ -5,7 +5,7 @@
  * "D&C 76:22", "Moses 1:39") into Gospel Library URLs and fetches the content.
  */
 
-import { getArticle, ArticleContent } from "./fetch.js";
+import { getArticleVerses, ArticleContent } from "./fetch.js";
 import { DEFAULT_LANG } from "../lib/locale.js";
 
 const BASE = "https://www.churchofjesuschrist.org";
@@ -110,23 +110,18 @@ export interface ScriptureResult extends ArticleContent {
   reference: string;
 }
 
-/**
- * Fetch a scripture passage by reference.
- * Examples: "John 3:16", "2 Nephi 2:25", "D&C 76", "Moses 1:39"
- */
-export async function getScripture(reference: string, lang?: string): Promise<ScriptureResult> {
-  const url = referenceToUrl(reference, lang ?? DEFAULT_LANG);
-  const article = await getArticle(url);
-  return { ...article, reference };
+interface ParsedRef {
+  url: string;
+  verseStart?: number;
+  verseEnd?: number;
 }
 
 /**
- * Convert a scripture reference string to a Gospel Library URL.
+ * Parse a scripture reference into a URL and optional verse range.
  */
-export function referenceToUrl(reference: string, lang: string = DEFAULT_LANG): string {
+function parseReference(reference: string, lang: string): ParsedRef {
   const ref = reference.trim();
 
-  // Try to parse: "<book> <chapter>:<verse>" or "<book> <chapter>"
   const match = ref.match(/^(.+?)\s+(\d+)(?::(\d+)(?:-(\d+))?)?$/i);
   if (!match) {
     throw new Error(
@@ -137,8 +132,8 @@ export function referenceToUrl(reference: string, lang: string = DEFAULT_LANG): 
 
   const bookName = match[1].toLowerCase().trim();
   const chapter = match[2];
-  const verseStart = match[3];
-  const verseEnd = match[4];
+  const verseStartStr = match[3];
+  const verseEndStr = match[4];
 
   const bookPath = SCRIPTURE_MAP[bookName];
   if (!bookPath) {
@@ -149,15 +144,37 @@ export function referenceToUrl(reference: string, lang: string = DEFAULT_LANG): 
   }
 
   let path = `/study/scriptures/${bookPath}/${chapter}`;
-  if (verseStart) {
-    path += `.${verseStart}`;
-    if (verseEnd) path += `-${verseEnd}`;
+  if (verseStartStr) {
+    path += `.${verseStartStr}`;
+    if (verseEndStr) path += `-${verseEndStr}`;
   }
   path += `?lang=${lang}`;
+  if (verseStartStr) path += `#p${verseStartStr}`;
 
-  if (verseStart) {
-    path += `#p${verseStart}`;
-  }
+  return {
+    url: `${BASE}${path}`,
+    verseStart: verseStartStr ? parseInt(verseStartStr, 10) : undefined,
+    verseEnd: verseEndStr
+      ? parseInt(verseEndStr, 10)
+      : verseStartStr
+        ? parseInt(verseStartStr, 10)
+        : undefined,
+  };
+}
 
-  return `${BASE}${path}`;
+/**
+ * Fetch a scripture passage by reference.
+ * Examples: "John 3:16", "2 Nephi 2:25", "D&C 76", "Moses 1:39"
+ */
+export async function getScripture(reference: string, lang?: string): Promise<ScriptureResult> {
+  const { url, verseStart, verseEnd } = parseReference(reference, lang ?? DEFAULT_LANG);
+  const article = await getArticleVerses(url, verseStart, verseEnd);
+  return { ...article, reference };
+}
+
+/**
+ * Convert a scripture reference string to a Gospel Library URL.
+ */
+export function referenceToUrl(reference: string, lang: string = DEFAULT_LANG): string {
+  return parseReference(reference, lang).url;
 }
