@@ -42,8 +42,9 @@ export async function searchGospelLibrary(
   // Index not yet built — fall back to slug search and nudge the user
   process.stderr.write(
     "[gospel-library] Vector index not built — using slug-based search.\n" +
-    "  Fast setup (~30s): npx @jasonbellz/gospel-library-mcp download-index\n" +
-    "  Build fresh (15-30m): npx @jasonbellz/gospel-library-mcp build-index\n"
+    "  Fast setup (~30s):    npx @jasonbellz/gospel-library-mcp download-index\n" +
+    "  Standard (~45-90m):   npx @jasonbellz/gospel-library-mcp build-index\n" +
+    "  Full/deep (~2-4hrs):  npx @jasonbellz/gospel-library-mcp build-index --full\n"
   );
   return searchViaSitemap(query, category, maxResults);
 }
@@ -60,7 +61,22 @@ async function searchViaVectors(
     ? CATEGORY_ALIASES[category] ?? category
     : undefined;
 
-  const results = searchByVector(queryEmbedding, categoryFilter, maxResults);
+  // Fetch extra results to account for chunk deduplication
+  const rawResults = searchByVector(queryEmbedding, categoryFilter, maxResults * 3);
+
+  // Deduplicate chunks — keep highest score per base URL
+  const seen = new Map<string, typeof rawResults[0]>();
+  for (const r of rawResults) {
+    const baseUrl = r.url.replace(/#chunk-\d+$/, "");
+    const existing = seen.get(baseUrl);
+    if (!existing || r.score > existing.score) {
+      seen.set(baseUrl, { ...r, url: baseUrl });
+    }
+  }
+
+  const results = Array.from(seen.values())
+    .sort((a, b) => b.score - a.score)
+    .slice(0, maxResults);
 
   return results.map((r) => ({
     title: r.title,

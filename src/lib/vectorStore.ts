@@ -15,6 +15,8 @@ export const DB_PATH = path.join(DB_DIR, "index.db");
 
 export const STALE_DAYS = 30;
 
+export type IndexMode = "none" | "truncated" | "chunked";
+
 export interface VectorDocument {
   url: string;
   title: string;
@@ -84,6 +86,36 @@ export function getDocumentCount(): number {
     return row.n;
   } catch {
     return 0;
+  }
+}
+
+/** Detect whether the index was built in truncated or chunked mode. */
+export function getIndexMode(): IndexMode {
+  if (!isIndexBuilt()) return "none";
+  try {
+    const row = getDb()
+      .prepare("SELECT COUNT(*) AS n FROM documents WHERE url LIKE '%#chunk-%'")
+      .get() as { n: number };
+    return row.n > 0 ? "chunked" : "truncated";
+  } catch {
+    return "none";
+  }
+}
+
+/**
+ * Check if an article (by its base URL, without any #chunk-N suffix) is
+ * already present in the index. Works for both truncated and chunked modes.
+ */
+export function isArticleIndexed(baseUrl: string): boolean {
+  try {
+    const row = getDb()
+      .prepare(
+        "SELECT 1 FROM documents WHERE url = ? OR url LIKE ? LIMIT 1"
+      )
+      .get(baseUrl, `${baseUrl}#chunk-%`);
+    return !!row;
+  } catch {
+    return false;
   }
 }
 

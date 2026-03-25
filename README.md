@@ -133,6 +133,15 @@ When a question is clearly about Church topics, call the relevant tool FIRST bef
 Without the index, search falls back to URL slug matching (still useful, just less precise).
 For semantic search — which finds articles by *meaning* rather than exact keywords — you need a local index.
 
+Three options are available, from fastest to most thorough:
+
+| Option | Command | Size | Time | Quality |
+|--------|---------|------|------|---------|
+| **Download** (pre-built) | `download-index` | ~12.5 MB | ~30 sec | Good |
+| **Standard build** (truncated) | `build-index` | ~12–13 MB | ~45–90 min | Good |
+| **Full build** (chunked) | `build-index --full` | ~35–40 MB | ~2–4 hrs | Best |
+| **Download full** (pre-built chunked) | `download-index --full` | ~35–40 MB | ~1–2 min | Best |
+
 ### Option 1: Download the Pre-Built Index (Recommended, ~30 seconds)
 
 Download a pre-built `index.db` from the latest GitHub Release:
@@ -141,16 +150,21 @@ Download a pre-built `index.db` from the latest GitHub Release:
 npx @jasonbellz/gospel-library-mcp download-index
 ```
 
-**What it does:**
-- Downloads the pre-built `index.db` (~12.5 MB) from the [latest GitHub Release](https://github.com/jasonbellz/gospel-library-mcp/releases/latest)
-- Saves it to `~/.gospel-library-mcp/index.db`
-- Shows live download progress
+Saves to `~/.gospel-library-mcp/index.db`. Shows live download progress.
 
-**Expected time:** ~30 seconds
+### Option 2: Download the Pre-Built Full Index (~1–2 minutes)
 
-### Option 2: Build the Index Locally (15–30 minutes)
+Download the pre-built chunked index for best semantic coverage:
 
-Build the index from scratch by crawling the live sitemap:
+```bash
+npx @jasonbellz/gospel-library-mcp download-index --full
+```
+
+Saves to `~/.gospel-library-mcp/index.db` (replaces any existing index).
+
+### Option 3: Build the Standard Index Locally (~45–90 minutes)
+
+Build from scratch by crawling the live sitemap. Each article is indexed using its full content, truncated to ~350 words (one embedding per article).
 
 ```bash
 npx @jasonbellz/gospel-library-mcp build-index
@@ -159,15 +173,23 @@ npx @jasonbellz/gospel-library-mcp build-index
 **What it does:**
 - Downloads the English sitemaps (~50k URLs)
 - Filters to indexed categories: General Conference talks, General Handbook, Gospel Topics essays (~10,000+ pages)
-- Fetches the title and description of each page
+- Fetches and parses each page, using the first ~350 words as the embed text
 - Generates 384-dimension embeddings using `Xenova/all-MiniLM-L6-v2` (runs locally, ~25 MB download on first run)
 - Stores everything in `~/.gospel-library-mcp/index.db`
 
-**Expected time:** 15–30 minutes (mostly network I/O)
+### Option 4: Build the Full Chunked Index Locally (~2–4 hours)
+
+Build a deeper index where each article is split into overlapping ~350-word chunks. Produces multiple embeddings per article for full semantic coverage of long talks and handbook sections.
+
+```bash
+npx @jasonbellz/gospel-library-mcp build-index --full
+```
+
+**When to use:** When you want the best possible search quality and are willing to wait for the longer build. Especially useful for finding specific passages within long articles.
 
 ### Refreshing After New Content
 
-New General Conference talks are published in April and October. Run an incremental refresh — only new articles are fetched and embedded:
+New General Conference talks are published in April and October. Run an incremental refresh — only new articles are fetched and embedded. The refresh automatically detects whether your current index is standard or full and uses the same mode:
 
 ```bash
 npx @jasonbellz/gospel-library-mcp refresh
@@ -431,7 +453,7 @@ The MCP server automatically detects your OS locale at startup and serves conten
 
 | Path | Purpose |
 |------|---------|
-| `~/.gospel-library-mcp/index.db` | SQLite vector index (~12.5 MB pre-built, ~17 MB when built locally) |
+| `~/.gospel-library-mcp/index.db` | SQLite vector index — standard (~12–13 MB) or full chunked (~35–40 MB) |
 | `~/.cache/huggingface/` | Cached embedding model (~25 MB, downloaded once on first `build-index`) |
 
 **Agent config files** (you create these — see [Quick Setup](#quick-setup) above):

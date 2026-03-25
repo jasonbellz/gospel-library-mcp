@@ -1,14 +1,19 @@
 /**
  * refresh.ts — Incremental index refresh
  *
- * Compares the current sitemap against already-indexed URLs and only
- * fetches and embeds articles that are new since the last run.
+ * Detects whether the current index was built in truncated or chunked mode
+ * and calls the appropriate build function so refresh stays consistent.
  */
 
-import { buildIndex, BuildResult, IndexProgress } from "./indexer.js";
+import { getIndexMode } from "./vectorStore.js";
+import { buildIndex, buildFullIndex, BuildResult, IndexProgress } from "./indexer.js";
 
 export async function refresh(
   onProgress?: (p: IndexProgress) => void
 ): Promise<BuildResult> {
+  const mode = getIndexMode();
+  if (mode === "chunked") {
+    return buildFullIndex(true, onProgress);
+  }
   return buildIndex(true, onProgress);
 }

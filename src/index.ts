@@ -29,8 +29,8 @@ import { searchGospelLibrary } from "./tools/search.js";
 import { getArticle } from "./tools/fetch.js";
 import { browseCategory } from "./tools/browse.js";
 import { getScripture } from "./tools/scripture.js";
-import { getIndexAgeDays, getDocumentCount, STALE_DAYS } from "./lib/vectorStore.js";
-import { buildIndex } from "./lib/indexer.js";
+import { getIndexAgeDays, getDocumentCount, getIndexMode, STALE_DAYS } from "./lib/vectorStore.js";
+import { buildIndex, buildFullIndex } from "./lib/indexer.js";
 import { refresh } from "./lib/refresh.js";
 import { downloadIndex } from "./lib/downloader.js";
 import { DEFAULT_LANG } from "./lib/locale.js";
@@ -283,8 +283,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
 // ── Start server ──────────────────────────────────────────────────────────────
 
-async function runDownloadIndex() {
-  console.log("Gospel Library MCP — Downloading pre-built index\n");
+async function runDownloadIndex(full: boolean) {
+  const filename = full ? "index-full.db" : "index.db";
+  const label = full ? "full (chunked)" : "standard (truncated)";
+  console.log(`Gospel Library MCP — Downloading pre-built ${label} index\n`);
   console.log("Source: github.com/jasonbellz/gospel-library-mcp (latest release)\n");
 
   await downloadIndex((downloaded, total) => {
@@ -297,28 +299,45 @@ async function runDownloadIndex() {
       const mb = (downloaded / 1024 / 1024).toFixed(1);
       process.stdout.write(`\r${mb} MB downloaded...    `);
     }
-  });
+  }, filename);
 
-  console.log("\n\nDone! Restart Copilot CLI to use semantic search.");
+  console.log("\n\nDone! Restart your AI agent to use semantic search.");
 }
 
-async function runBuildIndex() {
-  console.log("Gospel Library MCP — Building vector search index\n");
-  console.log("This will index ~10,000+ articles for semantic search.");
-  console.log("Each article is indexed using its title + description for richer results.");
-  console.log("Expected time: 15–30 minutes (model download on first run).\n");
+async function runBuildIndex(full: boolean) {
+  if (full) {
+    console.log("Gospel Library MCP — Building full (chunked) vector index\n");
+    console.log("Each article is split into overlapping ~350-word chunks for deep semantic coverage.");
+    console.log("Index size: ~35–40 MB  |  Expected time: 2–4 hours\n");
 
-  const { added, skipped } = await buildIndex(false, ({ current, total, message }) => {
-    if (total > 0) {
-      const pct = Math.round((current / total) * 100);
-      process.stdout.write(`\r[${pct}%] ${message}                    `);
-    } else {
-      process.stdout.write(`\r${message}                    `);
-    }
-  });
+    const { added, skipped } = await buildFullIndex(false, ({ current, total, message }) => {
+      if (total > 0) {
+        const pct = Math.round((current / total) * 100);
+        process.stdout.write(`\r[${pct}%] ${message}                    `);
+      } else {
+        process.stdout.write(`\r${message}                    `);
+      }
+    });
 
-  console.log(`\n\nDone! Indexed ${added} articles (${skipped} already indexed).`);
-  console.log("Search quality is now semantic — try it in Copilot.");
+    console.log(`\n\nDone! Indexed ${added} chunks from articles (${skipped} already indexed).`);
+    console.log("Deep semantic search is ready — restart your AI agent.");
+  } else {
+    console.log("Gospel Library MCP — Building standard (truncated) vector index\n");
+    console.log("Each article is indexed using its first ~350 words for semantic search.");
+    console.log("Index size: ~12–13 MB  |  Expected time: 45–90 minutes\n");
+
+    const { added, skipped } = await buildIndex(false, ({ current, total, message }) => {
+      if (total > 0) {
+        const pct = Math.round((current / total) * 100);
+        process.stdout.write(`\r[${pct}%] ${message}                    `);
+      } else {
+        process.stdout.write(`\r${message}                    `);
+      }
+    });
+
+    console.log(`\n\nDone! Indexed ${added} articles (${skipped} already indexed).`);
+    console.log("Semantic search is ready — restart your AI agent.");
+  }
 }
 
 async function runRefresh() {
@@ -338,14 +357,16 @@ async function runRefresh() {
 
 async function main() {
   const cmd = process.argv[2];
+  const flags = process.argv.slice(3);
+  const fullMode = flags.includes("--full");
 
   if (cmd === "download-index") {
-    await runDownloadIndex();
+    await runDownloadIndex(fullMode);
     return;
   }
 
   if (cmd === "build-index") {
-    await runBuildIndex();
+    await runBuildIndex(fullMode);
     return;
   }
 
@@ -357,6 +378,7 @@ async function main() {
   // MCP server mode — warn if the index is stale
   const ageDays = getIndexAgeDays();
   const docCount = getDocumentCount();
+  const indexMode = getIndexMode();
 
   if (DEFAULT_LANG !== "eng") {
     process.stderr.write(
@@ -367,14 +389,15 @@ async function main() {
 
   if (docCount > 0 && ageDays > STALE_DAYS) {
     process.stderr.write(
-      `[gospel-library] Index is ${Math.round(ageDays)} days old (${docCount} documents).\n` +
+      `[gospel-library] Index is ${Math.round(ageDays)} days old (${docCount} documents, ${indexMode} mode).\n` +
       `  Run: npx @jasonbellz/gospel-library-mcp refresh\n`
     );
   } else if (docCount === 0) {
     process.stderr.write(
       `[gospel-library] Vector index not built — using slug-based search.\n` +
-      `  Fast setup (~30s): npx @jasonbellz/gospel-library-mcp download-index\n` +
-      `  Build fresh (15-30m): npx @jasonbellz/gospel-library-mcp build-index\n`
+      `  Fast setup (~30s):    npx @jasonbellz/gospel-library-mcp download-index\n` +
+      `  Standard (~45-90m):   npx @jasonbellz/gospel-library-mcp build-index\n` +
+      `  Full/deep (~2-4hrs):  npx @jasonbellz/gospel-library-mcp build-index --full\n`
     );
   }
 
