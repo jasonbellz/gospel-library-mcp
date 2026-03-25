@@ -74,10 +74,12 @@ export async function browseCategory(category: string, lang?: string): Promise<C
 
   const articles: ArticleLink[] = [];
 
-  // Remove navigation and breadcrumb elements before scanning for article links
-  // so that parent-path "back" links don't appear in the results list.
+  // Remove site-chrome elements before scanning for article links.
+  // NOTE: do NOT remove <nav> here — conference index pages wrap all talk links
+  // in <nav> elements, so removing nav would wipe out all results.
+  // The depth filter below handles any stray ancestor/breadcrumb links instead.
   $(
-    "header, footer, nav, .nav, " +
+    "header, footer, " +
       "[class*='breadcrumb'], [class*='navigation'], " +
       "[class*='lc-nav'], [class*='lc-header'], [class*='lc-footer']"
   ).remove();
